@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "993549250235",
+    "project_id": "e-enrolment-n-e-counselling",
+    "storage_bucket": "e-enrolment-n-e-counselling.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:993549250235:android:98aa110a6902c0f921039e",
+        "android_client_info": {
+          "package_name": "FYP.com.e_enrolment_and_e_counselling_appication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxQZmUPn7TVND9HzX99wCk_XfuxE2y974"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

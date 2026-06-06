@@ -1,0 +1,47 @@
+Analyzing e_enrolment_and_e_counselling_appication...           
+
+   info - Unnecessary use of 'toList' in a spread - lib\admin_screens\admin_application_detail_screen.dart:70:16 - unnecessary_to_list_in_spreads
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\admin_screens\admin_dashboard.dart:169:24 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\admin_screens\admin_dashboard.dart:203:36 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\admin_screens\admin_profile_screen.dart:109:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\admin_screens\admin_web_layout.dart:128:33 - deprecated_member_use
+   info - Unnecessary use of 'toList' in a spread - lib\admin_screens\manage_applications_screen.dart:90:18 - unnecessary_to_list_in_spreads
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\admin_screens\manage_applications_screen.dart:121:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\admin_screens\reports_screen.dart:116:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\admin_screens\reports_screen.dart:126:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\counsellor_screens\appointment_history_detail_screen.dart:142:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\counsellor_screens\counsellor_dashboard.dart:194:24 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\counsellor_screens\counsellor_web_layout.dart:122:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\application_details_screen.dart:31:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\application_status_screen.dart:31:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\application_status_screen.dart:59:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\appointment_screen.dart:61:39 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\customer_screens\appointment_screen.dart:168:23 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\customer_screens\appointment_screen.dart:169:23 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\customer_screens\appointment_screen.dart:177:23 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\customer_screens\appointment_screen.dart:178:23 - deprecated_member_use
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\customer_screens\appointment_screen.dart:199:21 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\dashboard_screen.dart:65:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\dashboard_screen.dart:172:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\dashboard_screen.dart:197:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\enrolment_form_screen.dart:58:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\ocr_result_screen.dart:104:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\ocr_result_screen.dart:107:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\ocr_result_screen.dart:155:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\ocr_result_screen.dart:198:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\offer_letter_screen.dart:50:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\parsed_academic_result_screen.dart:187:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\parsed_academic_result_screen.dart:328:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\parsed_academic_result_screen.dart:331:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\parsed_academic_result_screen.dart:397:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\parsed_academic_result_screen.dart:440:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\parsed_academic_result_screen.dart:443:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\recommendation_screen.dart:62:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\recommendation_screen.dart:90:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\customer_screens\upload_document_screen.dart:114:39 - deprecated_member_use
+   info - Dangling library doc comment - lib\data\subject_catalogs.dart:8:1 - dangling_library_doc_comments
+   info - Angle brackets will be interpreted as HTML - lib\data\subject_catalogs.dart:8:39 - unintended_html_in_doc_comment
+warning - Duplicate import - lib\main.dart:30:8 - duplicate_import
+warning - The operand can't be 'null', so the condition is always 'false' - lib\services\ocr_post_processor.dart:111:17 - unnecessary_null_comparison
+
+43 issues found. (ran in 2.9s)
