@@ -95,20 +95,202 @@ class OcrPostProcessor {
       return OcrRow(List.unmodifiable(group));
     }).toList(growable: false);
 
-    return OcrStructuredResult(List.unmodifiable(rows));
+    return refineRows(OcrStructuredResult(rows));
+  }
+
+  /// Builds an [OcrStructuredResult] from pre-extracted [fragments] using the
+  /// same row grouping and orphan-merge pipeline as [process].
+  static OcrStructuredResult processFragments(List<OcrFragment> fragments) {
+    final sorted = List<OcrFragment>.from(fragments)
+      ..sort((a, b) => a.centerY.compareTo(b.centerY));
+
+    final rowGroups = _groupIntoRows(sorted);
+    final rows = rowGroups.map((group) {
+      group.sort((a, b) => a.left.compareTo(b.left));
+      return OcrRow(List.unmodifiable(group));
+    }).toList(growable: false);
+
+    return refineRows(OcrStructuredResult(rows));
+  }
+
+  /// Re-applies orphan grade/subject row merging to an existing result.
+  static OcrStructuredResult refineRows(OcrStructuredResult input) {
+    final merged = _mergeOrphanGradeRows(input.rows);
+    final consolidated =
+        merged.map(_consolidateRowSubjects).toList(growable: false);
+    return OcrStructuredResult(List.unmodifiable(consolidated));
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────
 
+  static final RegExp _gradePattern = RegExp(
+    r'^([A-E])\s*([+\-]?)\s*(?:\([^)]*\))?$',
+    caseSensitive: false,
+  );
+
+  static final RegExp _descriptionPattern = RegExp(r'^\(.*\)$');
+
+  static bool _isGradeFragment(String text) =>
+      _gradePattern.hasMatch(text.trim());
+
+  static bool _isDescriptionFragment(String text) =>
+      _descriptionPattern.hasMatch(text.trim());
+
+  static bool _isPartialDescriptionFragment(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return false;
+    if (trimmed.startsWith('(') && !trimmed.endsWith(')')) return true;
+    if (trimmed.endsWith(')') && !trimmed.startsWith('(')) return true;
+    return false;
+  }
+
+  static bool _isNoiseFragment(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return true;
+    if (trimmed.length == 1 && !_isGradeFragment(trimmed)) return true;
+    return false;
+  }
+
+  static bool _isSubjectFragment(String text) {
+    final trimmed = text.trim();
+    if (trimmed.length < 3) return false;
+    if (_isGradeFragment(trimmed)) return false;
+    if (_isDescriptionFragment(trimmed)) return false;
+    if (_isPartialDescriptionFragment(trimmed)) return false;
+    if (_isNoiseFragment(trimmed)) return false;
+    return RegExp(r'[A-Za-z]').hasMatch(trimmed);
+  }
+
+  static bool _rowHasGrade(OcrRow row) =>
+      row.fragments.any((f) => _isGradeFragment(f.text));
+
+  static bool _rowHasSubject(OcrRow row) =>
+      row.fragments.any((f) => _isSubjectFragment(f.text));
+
+  static bool _isGradeOnlyRow(OcrRow row) =>
+      _rowHasGrade(row) && !_rowHasSubject(row);
+
+  static bool _isSubjectOnlyRow(OcrRow row) =>
+      _rowHasSubject(row) && !_rowHasGrade(row);
+
+  static bool _isDescriptionOnlyRow(OcrRow row) {
+    final meaningful = row.fragments
+        .where((f) => !_isNoiseFragment(f.text))
+        .toList(growable: false);
+    return meaningful.isNotEmpty &&
+        meaningful.every(
+          (f) =>
+              _isDescriptionFragment(f.text) ||
+              _isPartialDescriptionFragment(f.text),
+        );
+  }
+
+  static OcrRow _combineRows(OcrRow primary, OcrRow secondary) {
+    final combined = [...primary.fragments, ...secondary.fragments]
+      ..sort((a, b) => a.left.compareTo(b.left));
+    return _consolidateRowSubjects(OcrRow(List.unmodifiable(combined)));
+  }
+
+  /// Joins split subject tokens such as `ADDITIONAL` + `MATHEMATICS` or
+  /// `BAHASA` + `INGGERIS` into one fragment for downstream matching.
+  static OcrRow _consolidateRowSubjects(OcrRow row) {
+    final hasGradeOrDescription = row.fragments.any(
+      (f) =>
+          _isGradeFragment(f.text) ||
+          _isDescriptionFragment(f.text) ||
+          _isPartialDescriptionFragment(f.text),
+    );
+    if (!hasGradeOrDescription) return row;
+
+    final subjectFragments = <OcrFragment>[];
+    final otherFragments = <OcrFragment>[];
+
+    for (final fragment in row.fragments) {
+      if (_isSubjectFragment(fragment.text)) {
+        subjectFragments.add(fragment);
+      } else {
+        otherFragments.add(fragment);
+      }
+    }
+
+    if (subjectFragments.length <= 1) {
+      return row;
+    }
+
+    final combinedSubject = OcrFragment(
+      text: subjectFragments.map((f) => f.text.trim()).join(' '),
+      top: subjectFragments.map((f) => f.top).reduce((a, b) => a < b ? a : b),
+      bottom:
+          subjectFragments.map((f) => f.bottom).reduce((a, b) => a > b ? a : b),
+      left: subjectFragments.map((f) => f.left).reduce((a, b) => a < b ? a : b),
+      right:
+          subjectFragments.map((f) => f.right).reduce((a, b) => a > b ? a : b),
+    );
+
+    final consolidated = [combinedSubject, ...otherFragments]
+      ..sort((a, b) => a.left.compareTo(b.left));
+
+    return OcrRow(List.unmodifiable(consolidated));
+  }
+
+  /// Merges split OCR rows where grades/descriptions were separated from their
+  /// subject line — common with server-side Tesseract output.
+  static List<OcrRow> _mergeOrphanGradeRows(List<OcrRow> rows) {
+    if (rows.length < 2) return rows;
+
+    final merged = <OcrRow>[];
+    var index = 0;
+
+    while (index < rows.length) {
+      final current = rows[index];
+
+      if (index + 1 < rows.length) {
+        final next = rows[index + 1];
+
+        if (_isGradeOnlyRow(current) && _isSubjectOnlyRow(next)) {
+          merged.add(_combineRows(next, current));
+          index += 2;
+          continue;
+        }
+
+        if (_isSubjectOnlyRow(current) && _isGradeOnlyRow(next)) {
+          merged.add(_combineRows(current, next));
+          index += 2;
+          continue;
+        }
+
+        if (_isDescriptionOnlyRow(current) && _isSubjectOnlyRow(next)) {
+          merged.add(_combineRows(next, current));
+          index += 2;
+          continue;
+        }
+
+        if (_isSubjectOnlyRow(current) &&
+            _isDescriptionOnlyRow(next) &&
+            index + 2 < rows.length &&
+            _isSubjectOnlyRow(rows[index + 2])) {
+          merged.add(_combineRows(rows[index + 2], _combineRows(current, next)));
+          index += 3;
+          continue;
+        }
+      }
+
+      merged.add(current);
+      index++;
+    }
+
+    return merged;
+  }
+
   /// Flattens every [TextLine] in every [TextBlock] into a flat list of
-  /// [OcrFragment]s, discarding lines with no bounding box or empty text.
+  /// [OcrFragment]s, discarding lines with empty text.
   static List<OcrFragment> _flatten(RecognizedText recognizedText) {
     final List<OcrFragment> result = [];
     for (final block in recognizedText.blocks) {
       for (final line in block.lines) {
         final box = line.boundingBox;
         final text = line.text.trim();
-        if (box == null || text.isEmpty) continue;
+        if (text.isEmpty) continue;
         result.add(OcrFragment(
           text: text,
           top: box.top,

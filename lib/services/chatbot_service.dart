@@ -43,7 +43,11 @@ class ChatbotService {
   // Gemini model name — Flash is fast and cost-efficient for chat.
   static const _modelName = 'gemini-2.5-flash';
 
-  static const _apiKey = String.fromEnvironment('CHATBOT_API_KEY');
+  static const _apiKey = String.fromEnvironment(
+    'CHATBOT_API_KEY',
+    defaultValue:
+        'API',
+  );
 
   final String userId;
   final FirebaseFirestore _db;

@@ -173,3 +173,26 @@ class HealthResponse(BaseModel):
     model_version: str
     n_classes: int
     features: list[str]
+
+
+# ---------------------------------------------------------------------------
+# OCR (POST /ocr)
+# ---------------------------------------------------------------------------
+
+
+class OcrFragmentResponse(BaseModel):
+    text: str
+    top: float
+    bottom: float
+    left: float
+    right: float
+
+
+class OcrRowResponse(BaseModel):
+    fragments: list[OcrFragmentResponse]
+
+
+class OcrResponse(BaseModel):
+    """Row-grouped OCR fragments for Flutter ``OcrPostProcessor`` / parser."""
+
+    rows: list[OcrRowResponse]

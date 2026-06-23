@@ -1,93 +1,259 @@
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
+
+import '../models/report_view_args.dart';
+import '../services/report_service.dart';
+import '../utils/report_pdf_generator.dart';
 
 class ReportViewScreen extends StatelessWidget {
   const ReportViewScreen({super.key});
 
+  static ReportViewArgs _parseArgs(Object? arguments) {
+    if (arguments is ReportViewArgs) {
+      return arguments;
+    }
+    if (arguments is String) {
+      return ReportViewArgs(type: arguments);
+    }
+    throw ArgumentError('ReportViewScreen requires ReportViewArgs or String.');
+  }
+
+  Future<void> _exportEnrolmentPdf({
+    required ReportViewArgs args,
+    required EnrolmentReportData data,
+  }) async {
+    final doc = ReportPdfGenerator.buildEnrolmentDocument(
+      data: data,
+      generatedAt: DateTime.now(),
+      fromDate: args.fromDate,
+      toDate: args.toDate,
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (_) async => doc.save(),
+      name: ReportPdfGenerator.fileName(
+        type: ReportType.enrolment,
+        fromDate: args.fromDate,
+        toDate: args.toDate,
+      ),
+    );
+  }
+
+  Future<void> _exportCounsellingPdf({
+    required ReportViewArgs args,
+    required CounsellingReportData data,
+  }) async {
+    final doc = ReportPdfGenerator.buildCounsellingDocument(
+      data: data,
+      generatedAt: DateTime.now(),
+      fromDate: args.fromDate,
+      toDate: args.toDate,
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (_) async => doc.save(),
+      name: ReportPdfGenerator.fileName(
+        type: ReportType.counselling,
+        fromDate: args.fromDate,
+        toDate: args.toDate,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final String type =
-    ModalRoute.of(context)!.settings.arguments as String;
+    final args = _parseArgs(ModalRoute.of(context)!.settings.arguments);
+    final reportService = ReportService();
+    final range = reportService.dateRangeFromArgs(args);
+    final reportTitle = ReportType.label(args.type);
+    final periodLabel =
+        ReportFormatting.formatPeriod(args.fromDate, args.toDate);
 
+    if (args.type == ReportType.enrolment) {
+      return StreamBuilder<EnrolmentReportData>(
+        stream: reportService.watchEnrolmentReport(range: range),
+        builder: (context, snapshot) {
+          return _buildScaffold(
+            reportTitle: reportTitle,
+            periodLabel: periodLabel,
+            snapshot: snapshot,
+            onExport: snapshot.hasData
+                ? () => _exportEnrolmentPdf(
+                      args: args,
+                      data: snapshot.data as EnrolmentReportData,
+                    )
+                : null,
+            buildReport: (data) => _buildEnrolmentReport(
+              data: data as EnrolmentReportData,
+              periodLabel: periodLabel,
+            ),
+          );
+        },
+      );
+    }
+
+    return StreamBuilder<CounsellingReportData>(
+      stream: reportService.watchCounsellingReport(range: range),
+      builder: (context, snapshot) {
+        return _buildScaffold(
+          reportTitle: reportTitle,
+          periodLabel: periodLabel,
+          snapshot: snapshot,
+          onExport: snapshot.hasData
+              ? () => _exportCounsellingPdf(
+                    args: args,
+                    data: snapshot.data as CounsellingReportData,
+                  )
+              : null,
+          buildReport: (data) => _buildCounsellingReport(
+            data: data as CounsellingReportData,
+            periodLabel: periodLabel,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildScaffold({
+    required String reportTitle,
+    required String periodLabel,
+    required AsyncSnapshot<dynamic> snapshot,
+    required Future<void> Function()? onExport,
+    required Widget Function(dynamic data) buildReport,
+  }) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Report"),
+        title: Text(reportTitle),
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
+        actions: [
+          if (onExport != null)
+            IconButton(
+              tooltip: 'Export PDF',
+              icon: const Icon(Icons.picture_as_pdf),
+              onPressed: onExport,
+            ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: type == "enrolment"
-            ? _enrolmentReport()
-            : _counsellingReport(),
-      ),
+      body: _buildStreamBody(snapshot, buildReport),
+      bottomNavigationBar: onExport == null
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: onExport,
+                    icon: const Icon(Icons.picture_as_pdf),
+                    label: const Text('Export PDF'),
+                  ),
+                ),
+              ),
+            ),
     );
   }
 
-  // ================= ENROLMENT REPORT =================
-  Widget _enrolmentReport() {
+  Widget _buildStreamBody(
+    AsyncSnapshot<dynamic> snapshot,
+    Widget Function(dynamic data) buildReport,
+  ) {
+    if (snapshot.hasError) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Unable to load report.\n${snapshot.error}',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    if (snapshot.connectionState == ConnectionState.waiting ||
+        !snapshot.hasData) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: buildReport(snapshot.data),
+    );
+  }
+
+  Widget _buildEnrolmentReport({
+    required EnrolmentReportData data,
+    required String periodLabel,
+  }) {
+    final tableRows = <List<String>>[
+      ['No', 'Student Name', 'Course Name', 'Status', 'Application Date'],
+      ...List.generate(data.rows.length, (index) {
+        final row = data.rows[index];
+        return [
+          '${index + 1}',
+          row.studentName,
+          row.courseName,
+          row.status.firestoreValue,
+          ReportFormatting.formatShortDate(row.appliedAt),
+        ];
+      }),
+    ];
+
     return _reportContainer(
-      title: "STUDENT ENROLMENT REPORT",
+      title: 'STUDENT ENROLMENT REPORT',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _headerInfo(),
-
+          _headerInfo(periodLabel: periodLabel),
           const SizedBox(height: 16),
-
-          _table([
-            ["No", "Name", "Faculty", "Level", "Programme", "Intake", "Status"],
-            ["1", "Ali", "Computing", "Degree", "Software Eng", "May", "Approved"],
-            ["2", "Tan", "Computing", "Degree", "Data Science", "Oct", "Pending"],
-            ["3", "Kumar", "Engineering", "Diploma", "Mechanical", "May", "Approved"],
-            ["4", "Siti", "Business", "Degree", "Accounting", "May", "Rejected"],
-          ]),
-
+          _table(tableRows),
           const SizedBox(height: 20),
-
-          _summary({
-            "Total Applications": "4",
-            "Approved": "2",
-            "Pending": "1",
-            "Rejected": "1",
-          }),
+          _summary(data.summary.asLabelMap),
         ],
       ),
     );
   }
 
-  // ================= COUNSELLING REPORT =================
-  Widget _counsellingReport() {
+  Widget _buildCounsellingReport({
+    required CounsellingReportData data,
+    required String periodLabel,
+  }) {
+    final tableRows = <List<String>>[
+      [
+        'No',
+        'Student Name',
+        'Counsellor Name',
+        'Appointment Date',
+        'Mode',
+        'Status',
+      ],
+      ...List.generate(data.rows.length, (index) {
+        final row = data.rows[index];
+        return [
+          '${index + 1}',
+          row.studentName,
+          row.counsellorName,
+          ReportFormatting.formatShortDate(row.appointmentDate),
+          row.mode,
+          row.status.firestoreValue,
+        ];
+      }),
+    ];
+
     return _reportContainer(
-      title: "COUNSELLING APPOINTMENT REPORT",
+      title: 'COUNSELLING APPOINTMENT REPORT',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _headerInfo(),
-
+          _headerInfo(periodLabel: periodLabel),
           const SizedBox(height: 16),
-
-          _table([
-            ["No", "Name", "Reason", "Date", "Time", "Type", "Status"],
-            ["1", "Ali", "Academic", "10 Mar", "10:00 AM", "Online", "Completed"],
-            ["2", "Tan", "Anxiety", "10 Mar", "2:00 PM", "Face-to-face", "Pending"],
-            ["3", "Raj", "Financial", "11 Mar", "11:00 AM", "Online", "Completed"],
-            ["4", "Siti", "Relationship", "11 Mar", "3:00 PM", "Online", "Cancelled"],
-          ]),
-
+          _table(tableRows),
           const SizedBox(height: 20),
-
-          _summary({
-            "Total Appointments": "4",
-            "Completed": "2",
-            "Pending": "1",
-            "Cancelled": "1",
-          }),
+          _summary(data.summary.asLabelMap),
         ],
       ),
     );
   }
-
-  // ================= COMMON UI =================
 
   Widget _reportContainer({required String title, required Widget child}) {
     return Container(
@@ -118,46 +284,65 @@ class ReportViewScreen extends StatelessWidget {
     );
   }
 
-  Widget _headerInfo() {
+  Widget _headerInfo({required String periodLabel}) {
+    final generatedDate =
+        ReportFormatting.formatLongDate(DateTime.now().toLocal());
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        Text("SYSTEM NAME : E-Enrolment and E-Counselling System"),
-        Text("GENERATED BY : Admin"),
-        SizedBox(height: 6),
+      children: [
+        const Text('SYSTEM NAME : E-Enrolment and E-Counselling System'),
+        const Text('GENERATED BY : Admin'),
+        Text('PERIOD : $periodLabel'),
+        const SizedBox(height: 6),
         Align(
           alignment: Alignment.centerRight,
-          child: Text("DATE : 12 March 2026"),
+          child: Text('DATE : $generatedDate'),
         ),
       ],
     );
   }
 
   Widget _table(List<List<String>> rows) {
-    return Table(
-      border: TableBorder.all(color: Colors.grey.shade400),
-      columnWidths: const {},
-      children: rows.map((row) {
-        final isHeader = rows.indexOf(row) == 0;
+    final headerOnly = rows.length <= 1;
 
-        return TableRow(
-          decoration: BoxDecoration(
-            color: isHeader ? Colors.grey.shade300 : Colors.transparent,
-          ),
-          children: row.map((cell) {
-            return Padding(
-              padding: const EdgeInsets.all(8),
-              child: Text(
-                cell,
-                style: TextStyle(
-                  fontWeight:
-                  isHeader ? FontWeight.bold : FontWeight.normal,
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Table(
+          border: TableBorder.all(color: Colors.grey.shade400),
+          columnWidths: const {},
+          children: rows.asMap().entries.map((entry) {
+            final isHeader = entry.key == 0;
+
+            return TableRow(
+              decoration: BoxDecoration(
+                color: isHeader ? Colors.grey.shade300 : Colors.transparent,
               ),
+              children: entry.value.map((cell) {
+                return Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Text(
+                    cell,
+                    style: TextStyle(
+                      fontWeight:
+                          isHeader ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                );
+              }).toList(),
             );
           }).toList(),
-        );
-      }).toList(),
+        ),
+        if (headerOnly)
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Text(
+              'No records found.',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          ),
+      ],
     );
   }
 
@@ -167,7 +352,7 @@ class ReportViewScreen extends StatelessWidget {
       children: data.entries.map((e) {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Text("${e.key} : ${e.value}"),
+          child: Text('${e.key} : ${e.value}'),
         );
       }).toList(),
     );

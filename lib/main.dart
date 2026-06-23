@@ -1,11 +1,9 @@
 import 'package:e_enrolment_and_e_counselling_appication/admin_screens/report_view_screen.dart';
-import 'package:e_enrolment_and_e_counselling_appication/counsellor_screens/appointment_history_detail_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
 
 // Import all customer_screens
-import 'admin_screens/admin_application_detail_screen.dart';
 import 'customer_screens/login_screen.dart';
 import 'customer_screens/register_screen.dart';
 import 'customer_screens/dashboard_screen.dart';
@@ -13,19 +11,19 @@ import 'customer_screens/appointment_screen.dart';
 import 'customer_screens/chatbot_screen.dart';
 import 'customer_screens/payment_screen.dart';
 import 'customer_screens/scholarship_screen.dart';
-import 'customer_screens/application_details_screen.dart';
-import 'customer_screens/application_status_screen.dart';
 import 'customer_screens/upload_document_screen.dart';
-import 'customer_screens/enrolment_form_screen.dart';
 import 'customer_screens/interest_profile_screen.dart';
 import 'customer_screens/recommendation_screen.dart';
 import 'customer_screens/riasec_questionnaire_screen.dart';
-import 'customer_screens/offer_letter_screen.dart';
+import 'student_screens/offer_letter_screen.dart';
 import 'customer_screens/user_profile_screen.dart';
 import 'customer_screens/role_selection_screen.dart';
 import 'admin_screens/admin_dashboard.dart';
 import 'admin_screens/admin_web_layout.dart';
-import 'admin_screens/manage_applications_screen.dart';
+import 'admin_screens/application_management_screen.dart';
+import 'admin_screens/manage_payments_screen.dart';
+import 'admin_screens/manage_offer_letters_screen.dart';
+import 'admin_screens/manage_scholarships_screen.dart';
 import 'admin_screens/reports_screen.dart';
 import 'admin_screens/course_management_screen.dart';
 import 'admin_screens/admin_profile_screen.dart';
@@ -37,8 +35,11 @@ import 'counsellor_screens/counsellor_web_layout.dart';
 import 'counsellor_screens/appointment_detail_screen.dart';
 import 'counsellor_screens/counsellor_profile_screen.dart';
 import 'counsellor_screens/manage_appointments_screen.dart';
+import 'counsellor_screens/counselling_history_detail_screen.dart';
+import 'counsellor_screens/counsellor_student_detail_screen.dart';
 import 'counsellor_screens/student_records_screen.dart';
 import 'student_screens/course_detail_screen.dart';
+import 'student_screens/document_upload_screen.dart';
 import 'student_screens/my_applications_screen.dart';
 import 'student_screens/student_web_layout.dart';
 
@@ -104,10 +105,12 @@ class MyApp extends StatelessWidget {
         '/recommendation': (context) => const RecommendationScreen(),
         '/interest-profile': (context) => const InterestProfileScreen(),
         '/riasec-questionnaire': (context) => const RiasecQuestionnaireScreen(),
-        '/enrolment': (context) => const EnrolmentFormScreen(),
         '/upload': (context) => const UploadDocumentScreen(),
-        '/applicationStatus': (context) => const ApplicationStatusScreen(),
-        '/applicationDetails': (context) => const ApplicationDetailsScreen(),
+        '/documents': (context) => const DocumentUploadScreen(),
+        '/applicationStatus': (context) => const StudentWebLayout(
+              selectedIndex: 1,
+              child: MyApplicationsScreen(),
+            ),
         '/offerLetter': (context) => const OfferLetterScreen(),
 
         // Others
@@ -121,27 +124,37 @@ class MyApp extends StatelessWidget {
               selectedIndex: 0,
               child: AdminDashboardScreen(),
             ),
-        '/manageApplications': (context) => const AdminWebLayout(
+        '/applicationManagement': (context) => const AdminWebLayout(
               selectedIndex: 1,
-              child: ManageApplicationsScreen(),
+              child: ApplicationManagementScreen(),
+            ),
+        '/managePayments': (context) => const AdminWebLayout(
+              selectedIndex: 2,
+              child: ManagePaymentsScreen(),
+            ),
+        '/manageOfferLetters': (context) => const AdminWebLayout(
+              selectedIndex: 3,
+              child: ManageOfferLettersScreen(),
+            ),
+        '/manageScholarships': (context) => const AdminWebLayout(
+              selectedIndex: 4,
+              child: ManageScholarshipsScreen(),
             ),
         '/reports': (context) => const AdminWebLayout(
-              selectedIndex: 2,
+              selectedIndex: 5,
               child: ReportsScreen(),
             ),
         '/reportView': (context) => const ReportViewScreen(),
-        '/adminApplicationDetail': (context) =>
-            const AdminApplicationDetailScreen(),
         '/courseManagement': (context) => const AdminWebLayout(
-              selectedIndex: 3,
+              selectedIndex: 6,
               child: CourseManagementScreen(),
             ),
         '/staffManagement': (context) => const AdminWebLayout(
-              selectedIndex: 4,
+              selectedIndex: 7,
               child: StaffManagementScreen(),
             ),
         '/adminProfile': (context) => const AdminWebLayout(
-              selectedIndex: 5,
+              selectedIndex: 8,
               child: AdminProfileScreen(),
             ),
         '/addAdmin': (context) => const AddStaffScreen(role: UserRole.admin),
@@ -168,7 +181,10 @@ class MyApp extends StatelessWidget {
               child: CounsellorProfileScreen(),
             ),
         '/appointmentDetail': (context) => const AppointmentDetailScreen(),
-        '/historyDetailPage': (context) => const AppointmentHistoryDetailScreen()
+        '/counsellorStudentDetail': (context) =>
+            const CounsellorStudentDetailScreen(),
+        '/counsellingHistoryDetail': (context) =>
+            const CounsellingHistoryDetailScreen(),
       },
     );
   }

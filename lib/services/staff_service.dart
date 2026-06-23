@@ -34,6 +34,23 @@ class StaffService {
     });
   }
 
+  /// Returns all active counsellor profiles, sorted alphabetically by name.
+  Future<List<AppUser>> getActiveCounsellors() async {
+    final snapshot = await _usersCol
+        .where('role', isEqualTo: UserRole.counsellor)
+        .get();
+
+    final counsellors = snapshot.docs
+        .map(AppUser.fromFirestore)
+        .where((user) => user.isStaffActive)
+        .toList()
+      ..sort(
+        (a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()),
+      );
+
+    return counsellors;
+  }
+
   /// Creates a Firebase Auth account and matching `users/{uid}` staff profile.
   ///
   /// The signed-in admin on the primary Firebase app remains authenticated.

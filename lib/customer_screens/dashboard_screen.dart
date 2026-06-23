@@ -1,4 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../services/application_service.dart';
+import '../widgets/application_status_chip.dart';
+import '../widgets/student_profile_avatar.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -16,15 +21,8 @@ class DashboardScreen extends StatelessWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, '/profile');
-              },
-              child: const CircleAvatar(
-                radius: 18,
-                backgroundColor: Colors.blueAccent,
-                child: Icon(Icons.person, color: Colors.white, size: 20),
-              ),
+            child: StudentProfileAvatar(
+              onTap: () => Navigator.pushNamed(context, '/profile'),
             ),
           ),
         ],
@@ -54,36 +52,7 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             /// 🔥 Status Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Application Status",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Text("Status: Pending"),
-                  SizedBox(height: 6),
-                  Text(
-                    "Next Step: Upload your academic documents",
-                    style: TextStyle(color: Colors.blueAccent),
-                  ),
-                ],
-              ),
-            ),
+            const _ApplicationStatusCard(),
 
             const SizedBox(height: 24),
 
@@ -99,16 +68,8 @@ class DashboardScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: _quickButton(
-                    icon: Icons.description,
-                    label: "Continue",
-                    onTap: () => Navigator.pushNamed(context, '/enrolment'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _quickButton(
                     icon: Icons.upload_file,
-                    label: "Upload",
+                    label: "Upload Documents",
                     onTap: () => Navigator.pushNamed(context, '/upload'),
                   ),
                 ),
@@ -142,12 +103,11 @@ class DashboardScreen extends StatelessWidget {
               children: [
 
                 _featureCard(Icons.upload_file, "Upload", '/upload', context),
+                _featureCard(Icons.folder_copy, "Documents", '/documents', context),
                 _featureCard(Icons.school, "Recommendation", '/recommendation', context),
                 _featureCard(Icons.assignment, "My Applications", '/myApplications', context),
                 _featureCard(Icons.psychology_outlined, "Interests", '/interest-profile', context),
-                _featureCard(Icons.assignment, "Enrolment", '/enrolment', context),
-                _featureCard(Icons.track_changes, "Status", '/applicationStatus', context),
-                _featureCard(Icons.description, "Offer", '/offerLetter', context),
+                _featureCard(Icons.description, "Offer Letter", '/offerLetter', context),
                 _featureCard(Icons.payment, "Payment", '/payment', context),
                 _featureCard(Icons.card_giftcard, "Scholarship", '/scholarship', context),
                 _featureCard(Icons.event, "Appointment", '/appointment', context),
@@ -208,6 +168,111 @@ class DashboardScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ApplicationStatusCard extends StatelessWidget {
+  const _ApplicationStatusCard();
+
+  static const _titleStyle = TextStyle(fontWeight: FontWeight.bold);
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final applicationService = ApplicationService();
+
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/myApplications'),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        child: user == null
+            ? _emptyState()
+            : StreamBuilder(
+                stream: applicationService.getStudentApplications(user.uid),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Application Status', style: _titleStyle),
+                        SizedBox(height: 12),
+                        SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ],
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Application Status', style: _titleStyle),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Failed to load applications.',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
+                    );
+                  }
+
+                  final applications = snapshot.data ?? [];
+                  if (applications.isEmpty) {
+                    return _emptyState();
+                  }
+
+                  final application = applications.first;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Application Status', style: _titleStyle),
+                      const SizedBox(height: 8),
+                      Text(
+                        application.courseName,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ApplicationStatusChip(status: application.status),
+                      const SizedBox(height: 8),
+                      Text(
+                        application.displayRemark,
+                        style: const TextStyle(color: Colors.blueAccent),
+                      ),
+                    ],
+                  );
+                },
+              ),
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Application Status', style: _titleStyle),
+        SizedBox(height: 8),
+        Text('No applications submitted yet.'),
+      ],
     );
   }
 }

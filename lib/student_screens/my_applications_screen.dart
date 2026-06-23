@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/application.dart';
 import '../services/application_service.dart';
 import '../widgets/application_status_chip.dart';
+import 'application_status_screen.dart';
 
 /// Lists all course applications for the signed-in student.
 class MyApplicationsScreen extends StatelessWidget {
@@ -82,49 +83,62 @@ class _ApplicationCard extends StatelessWidget {
     required this.formattedDate,
   });
 
+  void _openApplicationStatus(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => ApplicationStatusScreen(application: application),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    application.courseName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _openApplicationStatus(context),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      application.courseName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                ApplicationStatusChip(status: application.status),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Code: ${application.courseCode}',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.calendar_today_outlined,
-                    size: 14, color: Colors.grey.shade500),
-                const SizedBox(width: 6),
-                Text(
-                  'Applied: $formattedDate',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-          ],
+                  ApplicationStatusChip(status: application.status),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Code: ${application.courseCode}',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.calendar_today_outlined,
+                      size: 14, color: Colors.grey.shade500),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Applied: $formattedDate',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

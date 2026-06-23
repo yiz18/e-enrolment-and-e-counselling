@@ -23,6 +23,10 @@ responses.
 - Python 3.10+
 - `pip`
 - The four trained artifacts (see **Artifacts** below)
+- **Tesseract OCR** (required for `POST /ocr`):
+  - Windows: `winget install UB-Mannheim.TesseractOCR`
+  - Ubuntu/Debian: `sudo apt-get install -y tesseract-ocr`
+  - macOS: `brew install tesseract`
 
 ---
 
@@ -177,6 +181,42 @@ Expected response shape:
 }
 ```
 
+### 5. OCR endpoint (web upload fallback)
+
+Requires Tesseract installed on the host.
+
+```powershell
+# With server running on port 8000
+python test_ocr_local.py
+```
+
+Or upload via Swagger UI at **http://localhost:8000/docs** → `POST /ocr` → choose `spm_sample_yyz.jpg` from `backend/poc/`.
+
+---
+
+## Deploying OCR on Render
+
+Add Tesseract to the Render build step (Native Environment):
+
+```bash
+apt-get update && apt-get install -y tesseract-ocr
+pip install -r requirements.txt
+```
+
+Verify after deploy:
+
+```bash
+curl -F "file=@backend/poc/spm_sample_yyz.jpg" https://<your-service>.onrender.com/ocr
+```
+
+Flutter Web must point at the same backend:
+
+```bash
+flutter run -d chrome --dart-define=API_BASE_URL=https://<your-service>.onrender.com
+```
+
+---
+
 ### 4. Validation error example
 
 Sending an out-of-range value returns HTTP 422:
@@ -207,6 +247,7 @@ curl -X POST http://localhost:8000/predict \
 |--------|------|-------------|
 | `GET` | `/health` | Liveness check + model metadata |
 | `POST` | `/predict` | RIASEC type prediction (48 item scores in) |
+| `POST` | `/ocr` | Tesseract OCR for web academic document upload |
 | `GET` | `/docs` | Swagger UI |
 | `GET` | `/redoc` | ReDoc UI |
 

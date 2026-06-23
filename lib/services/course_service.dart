@@ -43,6 +43,13 @@ class CourseService {
         .toList();
   }
 
+  /// Returns a single course by document ID (course code), or `null` if missing.
+  Future<Course?> getCourseById(String id) async {
+    final doc = await _col.doc(id).get();
+    if (!doc.exists) return null;
+    return Course.fromFirestore(doc);
+  }
+
   // ---------------------------------------------------------------------------
   // Create
   // ---------------------------------------------------------------------------

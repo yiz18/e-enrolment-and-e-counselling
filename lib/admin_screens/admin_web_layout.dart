@@ -19,7 +19,10 @@ class AdminWebLayout extends StatelessWidget {
 
   static const List<String> _routes = [
     '/adminDashboard',
-    '/manageApplications',
+    '/applicationManagement',
+    '/managePayments',
+    '/manageOfferLetters',
+    '/manageScholarships',
     '/reports',
     '/courseManagement',
     '/staffManagement',
@@ -77,8 +80,23 @@ class _AdminSidebar extends StatelessWidget {
     ),
     _NavItem(
       label: 'Applications',
+      outlinedIcon: Icons.assignment_outlined,
+      filledIcon: Icons.assignment,
+    ),
+    _NavItem(
+      label: 'Payments',
+      outlinedIcon: Icons.payments_outlined,
+      filledIcon: Icons.payments,
+    ),
+    _NavItem(
+      label: 'Offer Letters',
       outlinedIcon: Icons.description_outlined,
       filledIcon: Icons.description,
+    ),
+    _NavItem(
+      label: 'Scholarships',
+      outlinedIcon: Icons.card_giftcard_outlined,
+      filledIcon: Icons.card_giftcard,
     ),
     _NavItem(
       label: 'Reports',

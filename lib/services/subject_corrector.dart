@@ -80,6 +80,14 @@ class SubjectCorrector {
   /// to determine whether a confident match was found, and
   /// [CorrectedSubject.isLowConfidence] to decide whether to flag the entry
   /// for manual review.
+  static const Map<String, String> _deterministicSubjectMatches = {
+    'bahasa inggeris': 'Bahasa Inggeris',
+    'bahasa arab': 'Bahasa Arab',
+    'bahasa cina': 'Bahasa Cina',
+    'bahasa melayu': 'Bahasa Melayu',
+    'bahasa tamil': 'Bahasa Tamil',
+  };
+
   CorrectedSubject correct(String rawText) {
     final String normalizedInput = normalize(rawText);
 
@@ -92,8 +100,28 @@ class SubjectCorrector {
       );
     }
 
+    final deterministic = _matchDeterministicSubject(normalizedInput);
+    if (deterministic != null) {
+      return CorrectedSubject(
+        name: deterministic,
+        confidence: 1.0,
+        isCorrected: normalizedInput != normalize(deterministic),
+        rawInput: rawText,
+      );
+    }
+
     String bestSubject = '';
     double bestScore = 0.0;
+
+    // Avoid matching the ambiguous token `BAHASA` before the second word arrives.
+    if (normalizedInput == 'bahasa') {
+      return CorrectedSubject(
+        name: rawText,
+        confidence: 0.0,
+        isCorrected: false,
+        rawInput: rawText,
+      );
+    }
 
     for (final subject in subjects) {
       final double score = _combinedScore(normalizedInput, subject);
@@ -120,6 +148,20 @@ class SubjectCorrector {
       isCorrected: false,
       rawInput: rawText,
     );
+  }
+
+  /// Returns a canonical subject when [normalizedInput] exactly matches or
+  /// starts with a known multi-word language label such as `bahasa inggeris`.
+  static String? _matchDeterministicSubject(String normalizedInput) {
+    final sortedKeys = _deterministicSubjectMatches.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+
+    for (final key in sortedKeys) {
+      if (normalizedInput == key || normalizedInput.startsWith('$key ')) {
+        return _deterministicSubjectMatches[key];
+      }
+    }
+    return null;
   }
 
   // ── Scoring ────────────────────────────────────────────────────────────────

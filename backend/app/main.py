@@ -12,6 +12,7 @@ Endpoints
 ---------
 GET  /health    → liveness + model metadata
 POST /predict   → career prediction (dominant_code, top3_codes, probabilities)
+POST /ocr       → Tesseract OCR for web academic document upload
 """
 
 from __future__ import annotations
@@ -22,12 +23,13 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.models.schemas import HealthResponse, PredictRequest, PredictResponse
+from app.models.schemas import HealthResponse, OcrResponse, PredictRequest, PredictResponse
 from app.services.model_service import model_service
+from app.services.ocr_service import ocr_service
 
 load_dotenv()
 
@@ -52,6 +54,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.critical("Artifact missing — server will start but /predict will fail.\n%s", exc)
     except Exception as exc:  # noqa: BLE001
         logger.critical("Failed to load model: %s", exc, exc_info=True)
+
+    if ocr_service.is_available():
+        logger.info("Tesseract OCR is available for POST /ocr.")
+    else:
+        logger.warning(
+            "Tesseract OCR is NOT available — POST /ocr will return HTTP 503. "
+            "Install tesseract-ocr on the host (e.g. apt-get install tesseract-ocr)."
+        )
     yield
     logger.info("=== Shutting down ===")
 
@@ -173,3 +183,48 @@ async def predict(body: PredictRequest) -> PredictResponse:
         top3_codes=result["top3_codes"],
         probabilities=result["probabilities"],
     )
+
+
+@app.post(
+    "/ocr",
+    response_model=OcrResponse,
+    summary="OCR for academic document upload (web fallback)",
+    tags=["OCR"],
+)
+async def ocr(file: UploadFile = File(...)) -> OcrResponse:
+    """Extract positioned text fragments from an uploaded certificate image.
+
+    Returns row-grouped fragments compatible with the Flutter
+    ``OcrPostProcessor`` / ``AcademicResultParser`` pipeline.
+    """
+    if not ocr_service.is_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "OCR engine is not available on this server. "
+                "Install tesseract-ocr and restart the service."
+            ),
+        )
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Upload an image file (JPEG, PNG, or WebP).",
+        )
+
+    try:
+        data = await file.read()
+        payload = ocr_service.process_image_bytes(data)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception("OCR failed for upload filename=%s", file.filename)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="OCR processing failed. Check server logs.",
+        ) from exc
+
+    return OcrResponse.model_validate(payload)

@@ -1,199 +1,557 @@
+import 'dart:async';
+
+
+
+import 'package:flutter/foundation.dart';
+
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'dart:io';
+
+import 'package:image_picker/image_picker.dart';
+
+
+
+import '../config/app_config.dart';
 
 import '../data/subject_catalogs.dart';
+
+import '../models/parsed_academic_result.dart';
+
 import '../services/academic_result_parser.dart';
+
 import '../services/ocr_post_processor.dart';
+
+import '../services/remote_ocr_service.dart';
+
 import '../services/student_session.dart';
+
 import '../services/subject_corrector.dart';
+
 import 'parsed_academic_result_screen.dart';
 
+
+
 class UploadDocumentScreen extends StatefulWidget {
+
   const UploadDocumentScreen({super.key});
 
+
+
   @override
+
   State<UploadDocumentScreen> createState() => _UploadDocumentScreenState();
+
 }
 
+
+
 class _UploadDocumentScreenState extends State<UploadDocumentScreen> {
-  File? _image;
+
+  XFile? _pickedFile;
+
+  Uint8List? _previewBytes;
+
   bool _isProcessing = false;
+
   final ImagePicker _picker = ImagePicker();
 
+  final RemoteOcrService _remoteOcrService = RemoteOcrService();
+
+
+
   // Parser instances are const and reused across invocations.
+
   static const _corrector = SubjectCorrector(subjects: kSpmSubjects);
+
   static const _parser = AcademicResultParser(subjectCorrector: _corrector);
 
-  Future<void> pickFromCamera() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.camera);
-    if (pickedFile != null) {
-      setState(() {
-        _image = File(pickedFile.path);
-      });
-    }
+
+
+  Future<void> _setPickedFile(XFile pickedFile) async {
+
+    final bytes = await pickedFile.readAsBytes();
+
+    if (!mounted) return;
+
+
+
+    setState(() {
+
+      _pickedFile = pickedFile;
+
+      _previewBytes = bytes;
+
+    });
+
   }
+
+
+
+  Future<void> pickFromCamera() async {
+
+    final pickedFile = await _picker.pickImage(source: ImageSource.camera);
+
+    if (pickedFile != null) {
+
+      await _setPickedFile(pickedFile);
+
+    }
+
+  }
+
+
 
   Future<void> pickFromGallery() async {
+
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+
     if (pickedFile != null) {
-      setState(() {
-        _image = File(pickedFile.path);
-      });
+
+      await _setPickedFile(pickedFile);
+
     }
+
   }
 
+
+
   Future<void> _runOcr() async {
-    if (_image == null) return;
+
+    if (_pickedFile == null || _isProcessing) return;
+
+
 
     setState(() => _isProcessing = true);
 
-    final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+
 
     try {
-      final inputImage = InputImage.fromFilePath(_image!.path);
-      final RecognizedText recognizedText =
-          await textRecognizer.processImage(inputImage);
+
+      final ParsedAcademicResult parsedResult =
+
+          kIsWeb ? await _runRemoteOcr() : await _runMobileOcr();
+
+
 
       if (!mounted) return;
 
-      final OcrStructuredResult structuredResult =
-          OcrPostProcessor.process(recognizedText);
 
-      final parsedResult = _parser.parse(structuredResult);
 
       if (!parsedResult.hasStudentInfo && !parsedResult.hasResults) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                "No academic results detected. Try a clearer photo."),
-          ),
+
+        _showOcrSnackBar(
+
+          'No academic results detected. Try a clearer photo.',
+
+          showRetry: true,
+
         );
+
       } else {
+
         Navigator.push(
+
           context,
+
           MaterialPageRoute(
+
             builder: (_) =>
+
                 ParsedAcademicResultScreen(parsedResult: parsedResult),
+
           ),
+
         );
+
       }
+
     } catch (e) {
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("OCR failed: ${e.toString()}")),
-      );
+
+      _showOcrSnackBar(_friendlyOcrError(e), showRetry: true);
+
     } finally {
-      await textRecognizer.close();
+
       if (mounted) setState(() => _isProcessing = false);
+
     }
+
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text("Upload Document"),
-        elevation: 0,
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.black,
+
+
+  Future<ParsedAcademicResult> _runMobileOcr() async {
+
+    final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+
+
+
+    try {
+
+      final inputImage = InputImage.fromFilePath(_pickedFile!.path);
+
+      final RecognizedText recognizedText =
+
+          await textRecognizer.processImage(inputImage);
+
+
+
+      final OcrStructuredResult structuredResult =
+
+          OcrPostProcessor.process(recognizedText);
+
+
+
+      return _parser.parse(structuredResult);
+
+    } finally {
+
+      await textRecognizer.close();
+
+    }
+
+  }
+
+
+
+  Future<ParsedAcademicResult> _runRemoteOcr() async {
+
+    final bytes = _previewBytes ?? await _pickedFile!.readAsBytes();
+
+    final structuredResult = await _remoteOcrService.processImage(
+
+      bytes,
+
+      filename: _pickedFile!.name,
+
+    );
+
+    return _parser.parse(structuredResult);
+
+  }
+
+
+
+  void _showOcrSnackBar(String message, {required bool showRetry}) {
+
+    ScaffoldMessenger.of(context).showSnackBar(
+
+      SnackBar(
+
+        content: Text(message),
+
+        action: showRetry
+
+            ? SnackBarAction(
+
+                label: 'Retry',
+
+                onPressed: () {
+
+                  if (!_isProcessing && _pickedFile != null) {
+
+                    _runOcr();
+
+                  }
+
+                },
+
+              )
+
+            : null,
+
       ),
+
+    );
+
+  }
+
+
+
+  String _friendlyOcrError(Object error) {
+
+    if (error is AppConfigException) {
+
+      return 'OCR server is not configured. Set API_BASE_URL and try again.';
+
+    }
+
+    if (error is OcrApiException) {
+
+      if (error.statusCode == 503) {
+
+        return 'OCR service is temporarily unavailable. Please try again later.';
+
+      }
+
+      return error.message;
+
+    }
+
+    if (error is OcrParseException) {
+
+      return 'OCR response was invalid. Please try again.';
+
+    }
+
+    if (error is TimeoutException) {
+
+      return 'OCR request timed out. Check your connection and try again.';
+
+    }
+
+    return 'OCR failed. Please try again with a clearer photo.';
+
+  }
+
+
+
+  bool get _canRunOcr => _pickedFile != null && !_isProcessing;
+
+
+
+  @override
+
+  Widget build(BuildContext context) {
+
+    return Scaffold(
+
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+
+      appBar: AppBar(
+
+        title: const Text('Upload Document'),
+
+        elevation: 0,
+
+        backgroundColor: Colors.blueAccent,
+
+        foregroundColor: Colors.black,
+
+      ),
+
       body: SingleChildScrollView(
+
         padding: const EdgeInsets.all(16),
+
         child: Align(
+
           alignment: Alignment.topCenter,
+
           child: Container(
+
             constraints: const BoxConstraints(maxWidth: 500),
+
             padding: const EdgeInsets.all(20),
+
             decoration: BoxDecoration(
+
               color: Colors.white,
+
               borderRadius: BorderRadius.circular(16),
+
               boxShadow: [
+
                 BoxShadow(
+
                   color: Colors.black.withOpacity(0.08),
+
                   blurRadius: 15,
+
                   offset: const Offset(0, 6),
+
                 ),
+
               ],
+
             ),
+
             child: Column(
+
               crossAxisAlignment: CrossAxisAlignment.start,
+
               children: [
+
                 const StudentSessionBanner(),
+
                 const SizedBox(height: 16),
+
                 const Text(
-                  "Upload your academic document",
+
+                  'Upload your academic document',
+
                   style: TextStyle(
+
                     fontSize: 18,
+
                     fontWeight: FontWeight.bold,
+
                   ),
+
                 ),
+
                 const SizedBox(height: 20),
 
-                // Image preview
-                if (_image != null)
+
+
+                if (_previewBytes != null)
+
                   Container(
+
                     height: 180,
+
                     width: double.infinity,
+
                     margin: const EdgeInsets.only(bottom: 16),
+
+                    clipBehavior: Clip.hardEdge,
+
                     decoration: BoxDecoration(
+
                       borderRadius: BorderRadius.circular(12),
-                      image: DecorationImage(
-                        image: FileImage(_image!),
-                        fit: BoxFit.cover,
-                      ),
+
                     ),
+
+                    child: Image.memory(
+
+                      _previewBytes!,
+
+                      fit: BoxFit.cover,
+
+                      width: double.infinity,
+
+                      height: 180,
+
+                    ),
+
                   ),
 
-                // Choose File
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isProcessing ? null : pickFromGallery,
-                    icon: const Icon(Icons.upload_file),
-                    label: const Text("Choose File"),
+
+
+                if (kIsWeb) ...[
+
+                  Padding(
+
+                    padding: const EdgeInsets.only(bottom: 16),
+
+                    child: Text(
+
+                      'On web, your document is processed by the OCR server '
+
+                      '(${AppConfig.apiBaseUrl}).',
+
+                      style: const TextStyle(
+
+                        fontSize: 13,
+
+                        color: Colors.blueGrey,
+
+                      ),
+
+                    ),
+
                   ),
+
+                ],
+
+
+
+                SizedBox(
+
+                  width: double.infinity,
+
+                  child: ElevatedButton.icon(
+
+                    onPressed: _isProcessing ? null : pickFromGallery,
+
+                    icon: const Icon(Icons.upload_file),
+
+                    label: const Text('Choose File'),
+
+                  ),
+
                 ),
+
+
 
                 const SizedBox(height: 12),
 
-                // Take Photo
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isProcessing ? null : pickFromCamera,
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text("Take Photo"),
+
+
+                if (!kIsWeb) ...[
+
+                  SizedBox(
+
+                    width: double.infinity,
+
+                    child: ElevatedButton.icon(
+
+                      onPressed: _isProcessing ? null : pickFromCamera,
+
+                      icon: const Icon(Icons.camera_alt),
+
+                      label: const Text('Take Photo'),
+
+                    ),
+
                   ),
-                ),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // Upload & Process OCR
+                ] else
+
+                  const SizedBox(height: 20),
+
+
+
                 SizedBox(
+
                   width: double.infinity,
+
                   child: ElevatedButton(
-                    onPressed:
-                        (_image == null || _isProcessing) ? null : _runOcr,
+
+                    onPressed: _canRunOcr ? _runOcr : null,
+
                     child: _isProcessing
+
                         ? const SizedBox(
+
                             height: 20,
+
                             width: 20,
+
                             child: CircularProgressIndicator(
+
                               strokeWidth: 2,
+
                               color: Colors.white,
+
                             ),
+
                           )
-                        : const Text("Upload & Process OCR"),
+
+                        : const Text('Upload & Process OCR'),
+
                   ),
+
                 ),
+
               ],
+
             ),
+
           ),
+
         ),
+
       ),
+
     );
+
   }
+
 }
+
+
