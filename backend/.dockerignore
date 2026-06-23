@@ -1,0 +1,26 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Local secrets and IDE
+.env
+.idea/
+.vscode/
+
+# Tests and POC — not needed at runtime
+poc/
+test_*.py
+test_local.py
+
+# Docs (optional trim; keeps image lean)
+*.md
+
+# Git
+.git/
+.gitignore
